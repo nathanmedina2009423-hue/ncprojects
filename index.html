@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>projects</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500&display=swap');
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0a0a;
+      --fg: #e8e8e8;
+      --dim: #555;
+      --border: #1e1e1e;
+    }
+
+    html, body {
+      background: var(--bg);
+      color: var(--fg);
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 14px;
+      min-height: 100vh;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 80px 24px 60px;
+    }
+
+    header { margin-bottom: 64px; }
+
+    header h1 {
+      font-size: 13px;
+      font-weight: 400;
+      color: var(--dim);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    header h1 span { color: var(--fg); }
+
+    .meta { margin-top: 6px; font-size: 11px; color: var(--dim); }
+
+    #project-list { flex: 1; }
+
+    .state-text {
+      font-size: 13px;
+      color: var(--dim);
+      padding: 12px 0;
+    }
+
+    .loading { animation: pulse 1.4s ease-in-out infinite; }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 0.3; }
+      50%       { opacity: 1; }
+    }
+
+    .project-item {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      padding: 14px 0;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      color: var(--fg);
+      gap: 16px;
+      user-select: none;
+    }
+
+    .project-item:first-child { border-top: 1px solid var(--border); }
+    .project-item:hover .proj-name::after { opacity: 1; }
+
+    .proj-name {
+      font-size: 14px;
+      font-weight: 400;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      position: relative;
+    }
+
+    .proj-name::after {
+      content: ' →';
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+
+    .proj-date {
+      font-size: 11px;
+      color: var(--dim);
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .count {
+      font-size: 11px;
+      color: var(--dim);
+      margin-bottom: 24px;
+      min-height: 16px;
+    }
+
+    footer {
+      margin-top: 64px;
+      font-size: 11px;
+      color: var(--dim);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    footer a {
+      color: var(--dim);
+      text-decoration: none;
+      letter-spacing: 0.06em;
+      transition: color 0.15s;
+    }
+
+    footer a:hover { color: var(--fg); }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>/ <span>projects</span></h1>
+    <p class="meta">a collection of html work</p>
+  </header>
+
+  <div class="count" id="count"></div>
+
+  <div id="project-list">
+    <p class="state-text loading">loading...</p>
+  </div>
+
+  <footer>
+    <span id="footer-year"></span>
+    <a href="/admin">admin</a>
+  </footer>
+
+  <script>
+    function escHtml(s) {
+      return String(s)
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+        .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function formatDate(iso) {
+      return iso ? iso.slice(0, 10) : '';
+    }
+
+    async function openProject(id) {
+      try {
+        const res = await fetch(`/api/projects/${id}`);
+        if (!res.ok) throw new Error(`${res.status}`);
+        const { content } = await res.json();
+        if (!content) throw new Error('empty content');
+        const blob = new Blob([content], { type: 'text/html' });
+        window.open(URL.createObjectURL(blob), '_blank');
+      } catch (e) {
+        console.error('Failed to open project:', e);
+        alert('Could not load this project. Please try again.');
+      }
+    }
+
+    async function render() {
+      const list  = document.getElementById('project-list');
+      const count = document.getElementById('count');
+      try {
+        const res = await fetch('/api/projects');
+        if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+        const projects = await res.json();
+
+        if (!projects.length) {
+          list.innerHTML = '<p class="state-text">no projects yet.</p>';
+          return;
+        }
+
+        count.textContent = `${projects.length} project${projects.length !== 1 ? 's' : ''}`;
+        list.innerHTML = projects.map(p => `
+          <div class="project-item" data-id="${escHtml(p.id)}">
+            <span class="proj-name">${escHtml(p.name)}</span>
+            <span class="proj-date">${formatDate(p.created_at)}</span>
+          </div>
+        `).join('');
+
+        list.querySelectorAll('.project-item').forEach(item => {
+          item.addEventListener('click', () => openProject(item.dataset.id));
+        });
+      } catch (e) {
+        console.error('Failed to load projects:', e);
+        list.innerHTML = '<p class="state-text">error loading projects.</p>';
+      }
+    }
+
+    document.getElementById('footer-year').textContent = new Date().getFullYear();
+    render();
+  </script>
+</body>
+</html>
