@@ -438,8 +438,8 @@
       el.innerHTML = projects.map(p => `
         <div class="admin-item">
           <span class="admin-item-name">${escHtml(p.name)}</span>
-          <span class="admin-item-date">${p.created_at ? p.created_at.slice(0,10) : ''}</span>
           <button class="admin-item-dl" data-id="${escHtml(p.id)}" data-name="${escHtml(p.name)}" data-filename="${escHtml(p.filename || '')}" title="download">↓</button>
+          <span class="admin-item-date">${p.created_at ? p.created_at.slice(0,10) : ''}</span>
           <button class="admin-item-del" data-id="${escHtml(p.id)}" title="delete">✕</button>
         </div>
       `).join('');
