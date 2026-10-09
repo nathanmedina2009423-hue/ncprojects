@@ -194,6 +194,21 @@
     .admin-item-del:hover:not(:disabled) { color: var(--err); }
     .admin-item-del:disabled { opacity: 0.3; cursor: not-allowed; }
 
+    .admin-item-dl {
+      background: none;
+      border: none;
+      color: var(--dim);
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      cursor: pointer;
+      padding: 4px;
+      transition: color 0.15s;
+      flex-shrink: 0;
+    }
+
+    .admin-item-dl:hover:not(:disabled) { color: var(--fg); }
+    .admin-item-dl:disabled { opacity: 0.3; cursor: not-allowed; }
+
     .list-state {
       font-size: 13px;
       color: var(--dim);
@@ -424,13 +439,44 @@
         <div class="admin-item">
           <span class="admin-item-name">${escHtml(p.name)}</span>
           <span class="admin-item-date">${p.created_at ? p.created_at.slice(0,10) : ''}</span>
+          <button class="admin-item-dl" data-id="${escHtml(p.id)}" data-name="${escHtml(p.name)}" data-filename="${escHtml(p.filename || '')}" title="download">↓</button>
           <button class="admin-item-del" data-id="${escHtml(p.id)}" title="delete">✕</button>
         </div>
       `).join('');
 
+      el.querySelectorAll('.admin-item-dl').forEach(btn => {
+        btn.addEventListener('click', () => downloadProject(btn.dataset.id, btn.dataset.filename || btn.dataset.name, btn));
+      });
+
       el.querySelectorAll('.admin-item-del').forEach(btn => {
         btn.addEventListener('click', () => deleteProject(btn.dataset.id, btn));
       });
+    }
+
+    async function downloadProject(id, name, btn) {
+      btn.disabled = true;
+      try {
+        const res = await fetch(`/api/projects/${id}`);
+        if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+        const { content } = await res.json();
+        if (!content) throw new Error('empty content');
+
+        const blob = new Blob([content], { type: 'text/html' });
+        const url = URL.createObjectURL(blob);
+        const safe = String(name || id).replace(/[^\w\-. ]+/g, '_');
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = /\.html?$/i.test(safe) ? safe : safe + '.html';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      } catch (e) {
+        console.error('Download error:', e);
+        showMsg('upload-msg', 'download failed.', 'err');
+      } finally {
+        btn.disabled = false;
+      }
     }
 
     async function deleteProject(id, btn) {
